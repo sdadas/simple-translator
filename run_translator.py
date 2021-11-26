@@ -138,7 +138,8 @@ def create_app():
     def translate(src_lang):
         assert src_lang in ("pl", "de", "fr", "es", "en")
         data: any = request.data.decode("utf-8")
-        return _do_translate([data], src_lang)
+        response = _do_translate([data], src_lang)
+        return response["outputs"][0]
 
     @app.route("/batch", methods=["POST"])
     def batch_translate():
@@ -146,9 +147,9 @@ def create_app():
         inputs = data.get("inputs")
         src_lang = data.get("src_lang")
         inputs = [inputs] if isinstance(inputs, str) else inputs
-        return _do_translate(inputs, src_lang)
+        return jsonify(_do_translate(inputs, src_lang))
 
-    def _do_translate(inputs, src_lang):
+    def _do_translate(inputs, src_lang) -> Dict:
         if src_lang != "en":
             mapping, sentences = proc.split_sentences(inputs, src_lang)
             output_sentences = model.predict(sentences, src_lang) if len(sentences) > 0 else []
@@ -156,7 +157,7 @@ def create_app():
             outputs = proc.join_sentences(mapping, output_sentences)
         else:
             outputs = inputs
-        return jsonify({"inputs": inputs, "output": outputs, "src_lang": src_lang, "tgt_lang": "en"})
+        return {"inputs": inputs, "outputs": outputs, "src_lang": src_lang, "tgt_lang": "en"}
 
     return app, args, proc
 
