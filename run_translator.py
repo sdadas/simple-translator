@@ -69,7 +69,7 @@ class InputSentence:
 class InputProcessor:
 
     def __init__(self, cache_dir: str):
-        os.makedirs(cache_dir, mode=777, exist_ok=True)
+        os.makedirs(cache_dir, exist_ok=True)
         self.cache = SqliteDict(os.path.join(cache_dir, "cache.sqlite"), autocommit=True)
 
     def split_sentences(self, texts: List[str], src_lang: str):
