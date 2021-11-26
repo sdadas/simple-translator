@@ -7,7 +7,7 @@ from flask import Flask, request, jsonify
 from sqlitedict import SqliteDict
 from transformers import MarianTokenizer, MarianMTModel
 from nltk import download, sent_tokenize
-
+from nltk.data import path as nltk_path
 
 class TranslationModel:
 
@@ -127,16 +127,28 @@ def create_app():
     parser.add_argument("--sentence-cache", type=str, default="sentence_cache")
     args = parser.parse_args()
 
-    download("punkt")
+    os.environ['TRANSFORMERS_CACHE'] = args.model_cache
+    os.environ["NLTK_DATA"] = args.model_cache
+    nltk_path.append(args.model_cache)
+    download("punkt", download_dir=args.model_cache)
     proc = InputProcessor(args.sentence_cache)
     model = TranslationModelGroup(args.model_cache)
 
-    @app.route("/translate", methods=["POST"])
-    def translate():
+    @app.route("/translate/<src_lang>", methods=["POST"])
+    def translate(src_lang):
+        assert src_lang in ("pl", "de", "fr", "es", "en")
+        data: any = request.data.decode("utf-8")
+        return _do_translate([data], src_lang)
+
+    @app.route("/batch", methods=["POST"])
+    def batch_translate():
         data: any = request.json
         inputs = data.get("inputs")
         src_lang = data.get("src_lang")
         inputs = [inputs] if isinstance(inputs, str) else inputs
+        return _do_translate(inputs, src_lang)
+
+    def _do_translate(inputs, src_lang):
         if src_lang != "en":
             mapping, sentences = proc.split_sentences(inputs, src_lang)
             output_sentences = model.predict(sentences, src_lang) if len(sentences) > 0 else []
